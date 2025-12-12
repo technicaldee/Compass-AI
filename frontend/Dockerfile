@@ -16,7 +16,26 @@ WORKDIR /app
 
 # Copy dependencies from deps stage
 COPY --from=deps /app/node_modules ./node_modules
-COPY . .
+
+# Copy package files
+COPY package.json package-lock.json* ./
+
+# Copy Next.js config files
+COPY next.config.js ./
+COPY tsconfig.json ./
+COPY tailwind.config.ts ./
+COPY postcss.config.js ./
+
+# Copy source code directories
+COPY app ./app
+COPY components ./components
+COPY lib ./lib
+
+# Copy public directory if it exists (optional)
+COPY public* ./public/ 2>/dev/null || true
+
+# Copy any other necessary files
+COPY next-env.d.ts ./
 
 # Set environment variables for build
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -41,6 +60,7 @@ COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./package.json
+COPY --from=builder /app/next.config.js ./next.config.js
 
 # Create .data directory for persistence
 RUN mkdir -p .data && chown -R nextjs:nodejs .data
