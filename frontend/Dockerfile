@@ -31,9 +31,6 @@ COPY app ./app
 COPY components ./components
 COPY lib ./lib
 
-# Copy public directory if it exists (optional)
-COPY public* ./public/ 2>/dev/null || true
-
 # Copy any other necessary files
 COPY next-env.d.ts ./
 
@@ -56,11 +53,14 @@ RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
 # Copy necessary files from builder
-COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/next.config.js ./next.config.js
+
+# Copy public directory if it exists (create empty if not)
+RUN mkdir -p ./public || true
+COPY --from=builder /app/public* ./public/ 2>/dev/null || true
 
 # Create .data directory for persistence
 RUN mkdir -p .data && chown -R nextjs:nodejs .data
