@@ -1,4 +1,4 @@
-# Simple Next.js Dockerfile
+# Simple Next.js Dockerfile for development
 FROM node:20-alpine
 
 WORKDIR /app
@@ -12,9 +12,6 @@ RUN npm ci
 # Copy all frontend files
 COPY frontend/ ./
 
-# Build the Next.js app
-RUN npm run build
-
 # Create .data directory for persistence
 RUN mkdir -p .data
 
@@ -22,7 +19,7 @@ RUN mkdir -p .data
 EXPOSE 3000
 
 ENV PORT=3000
-ENV NODE_ENV=production
+ENV NODE_ENV=development
 
-# Start the Next.js app
-CMD ["npm", "start"]
+# Run Next.js in development mode
+CMD ["npm", "run", "dev"]
