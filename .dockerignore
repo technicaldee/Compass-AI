@@ -3,16 +3,23 @@ node_modules
 frontend/node_modules
 **/node_modules
 
-# Build outputs
+# Build outputs - CRITICAL: Exclude backend dist folder
 dist
+**/dist
 frontend/.next
 frontend/out
 frontend/build
+
+# Backend source code - CRITICAL: Don't copy backend
+src
+**/src
 
 # Environment files
 .env
 .env.local
 .env*.local
+frontend/.env
+frontend/.env.local
 
 # Logs
 *.log
@@ -48,7 +55,15 @@ coverage
 frontend/.data
 .data
 
-# Other
-src
+# Scripts
 frontend/scripts
+scripts
+
+# Other backend files
+tsconfig.json
+package.json
+package-lock.json
+!frontend/package.json
+!frontend/package-lock.json
+!frontend/tsconfig.json
 

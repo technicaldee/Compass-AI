@@ -42,6 +42,9 @@ ENV NODE_ENV=production
 # Build the Next.js application
 RUN npm run build
 
+# Verify standalone output was created
+RUN test -f .next/standalone/server.js || (echo "ERROR: Next.js standalone output not found!" && exit 1)
+
 # Stage 3: Runner
 FROM node:20-alpine AS runner
 WORKDIR /app
@@ -58,6 +61,9 @@ RUN addgroup --system --gid 1001 nodejs && \
 # The standalone folder contains server.js and node_modules
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
+
+# Verify server.js exists
+RUN test -f server.js || (echo "ERROR: server.js not found in standalone output!" && ls -la && exit 1)
 
 # Create public directory (Next.js will handle static assets)
 RUN mkdir -p ./public
