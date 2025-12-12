@@ -58,9 +58,8 @@ COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/next.config.js ./next.config.js
 
-# Copy public directory if it exists (create empty if not)
-RUN mkdir -p ./public || true
-COPY --from=builder /app/public* ./public/ 2>/dev/null || true
+# Create public directory (Next.js static assets are in .next/static)
+RUN mkdir -p ./public
 
 # Create .data directory for persistence
 RUN mkdir -p .data && chown -R nextjs:nodejs .data
