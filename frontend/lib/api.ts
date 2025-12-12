@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { InsightReport } from './types'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1'
 
@@ -27,22 +28,8 @@ export interface ContinueOnboardResponse {
   }
 }
 
-export interface InsightReport {
-  summary: {
-    headline: string
-    confidence: number
-    basedOn: string[]
-  }
-  recommendations: Recommendation[]
-  risks: Risk[]
-  actionPlan: ActionItem[]
-  metadata: {
-    agentsInvolved: string[]
-    dataSourcesUsed: string[]
-    processingTime: number
-    reasoningPath: ReasoningStep[]
-  }
-}
+// Legacy interfaces - kept for backward compatibility if needed
+// The actual InsightReport type is imported from './types'
 
 export interface Recommendation {
   id: string

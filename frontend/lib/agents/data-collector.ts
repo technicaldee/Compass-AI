@@ -20,14 +20,30 @@ export const dataCollectorAgent = {
     try {
       const state: CollectionState = currentState || { goals: [] }
 
-      // If we're asking for project name and user provides input, use it directly
-      // This handles the case where user is directly answering the project name question
-      if (!state.projectName || state.projectName.trim().length === 0) {
-        const trimmed = userInput.trim()
-        // If input is reasonable length and doesn't look like a question or other field, use as project name
-        if (trimmed.length > 2 && trimmed.length < 100 && !trimmed.toLowerCase().includes('?') && !trimmed.toLowerCase().startsWith('i want') && !trimmed.toLowerCase().startsWith('my goal')) {
-          state.projectName = trimmed
+      // Determine what we're likely asking for based on what's missing
+      const needsCategory = !state.category
+      const needsProjectName = !state.projectName || state.projectName.trim().length === 0
+      const needsOwner = !state.owner || !state.owner.name
+      const needsGoals = state.goals.length === 0
+
+      const trimmed = userInput.trim().toLowerCase()
+      
+      // Check if input matches a valid category
+      const validCategories = ['tech', 'business', 'community', 'creative', 'education', 'healthcare', 'finance', 'other']
+      if (needsCategory && validCategories.includes(trimmed)) {
+        state.category = trimmed
+        // If projectName or owner was incorrectly set to this category value, clear it
+        if (state.projectName?.toLowerCase() === trimmed) {
+          state.projectName = undefined
         }
+        if (state.owner?.name?.toLowerCase() === trimmed) {
+          state.owner = undefined
+        }
+      }
+      // If we're asking for category and input is a valid category, don't set as projectName
+      else if (needsProjectName && !needsCategory && trimmed.length > 2 && trimmed.length < 100 && !trimmed.includes('?') && !trimmed.startsWith('i want') && !trimmed.startsWith('my goal') && !validCategories.includes(trimmed)) {
+        // Only set as projectName if we're not asking for category AND it's not a valid category
+        state.projectName = userInput.trim()
       }
       
       // Store the original projectName before AI extraction to prevent overwriting
@@ -74,7 +90,10 @@ Return a JSON object with only the fields that were mentioned or updated in this
       if (extracted.projectName && (!originalProjectName || originalProjectName.trim().length === 0)) {
         state.projectName = extracted.projectName
       }
-      if (extracted.category) state.category = extracted.category
+      // Category: prefer direct match over AI extraction if it's a valid category
+      if (extracted.category && !state.category) {
+        state.category = extracted.category
+      }
       if (extracted.goals && extracted.goals.length > 0) {
         // Merge goals, avoiding duplicates by both ID and description
         const existingGoalIds = new Set(state.goals.map(g => g.id))
@@ -127,7 +146,10 @@ Return a JSON object with only the fields that were mentioned or updated in this
       }
 
       // If user input looks like just a name and we don't have owner, extract it
-      if (!state.owner && userInput.trim().length < 50 && !userInput.toLowerCase().includes('project') && !userInput.toLowerCase().includes('goal') && userInput.toLowerCase().trim() !== 'skip') {
+      // But don't do this if it's a valid category (categories shouldn't be treated as names)
+      const isCategory = validCategories.includes(userInput.trim().toLowerCase())
+      
+      if (!state.owner && !isCategory && userInput.trim().length < 50 && !userInput.toLowerCase().includes('project') && !userInput.toLowerCase().includes('goal') && userInput.toLowerCase().trim() !== 'skip') {
         // Simple heuristic: if input is short and looks like a name, treat it as owner
         const trimmed = userInput.trim()
         if (trimmed.split(' ').length <= 3 && /^[A-Za-z\s]+$/.test(trimmed)) {

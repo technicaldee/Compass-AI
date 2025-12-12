@@ -17,6 +17,20 @@ export async function POST(
   } catch (error: any) {
     console.error('Generate advice error:', error)
     
+    // Handle project not found errors - return 404 instead of 500
+    if (error?.code === 'PROJECT_NOT_FOUND' || error?.statusCode === 404 || error?.message?.includes('not found')) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            message: `Project ${params.projectId} not found. Please ensure the project was created through the onboarding flow.`,
+            code: 'PROJECT_NOT_FOUND',
+          },
+        },
+        { status: 404 }
+      )
+    }
+    
     // Handle rate limit errors specifically
     if (error?.isRateLimit || error?.status === 429) {
       return NextResponse.json(
@@ -40,7 +54,7 @@ export async function POST(
           code: 'INTERNAL_ERROR',
         },
       },
-      { status: error?.status || 500 }
+      { status: error?.status || error?.statusCode || 500 }
     )
   }
 }

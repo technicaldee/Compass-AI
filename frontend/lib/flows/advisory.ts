@@ -9,30 +9,63 @@ export const advisoryFlow = {
   async generateInsights(projectId: string, projectData?: ProjectPayload): Promise<InsightReport> {
     const startTime = Date.now()
 
-    // Retrieve project - try memory first, then use provided data, then check session
-    let project = memory.getProject(projectId)
+    // Retrieve project - try multiple sources in order of reliability
+    let project = await memory.getProject(projectId)
     
+    // If not in projects map, try provided data
     if (!project && projectData) {
       project = projectData
       // Save it for future use
-      memory.saveProject(projectId, project)
+      await memory.saveProject(projectId, project)
     }
     
-    // If still not found, search sessions for one with this projectId
+    // If still not found, use the improved session search method
     if (!project) {
-      const session = memory.findSessionByProjectId(projectId)
-      if (session?.state) {
-        // Convert partial state to full ProjectPayload if it has required fields
-        const state = session.state
-        if (state.projectName && state.category && state.goals && state.owner) {
-          project = state as ProjectPayload
-          memory.saveProject(projectId, project)
+      project = await memory.findProjectInSessions(projectId)
+      if (project) {
+        // Save it for future use
+        await memory.saveProject(projectId, project)
+      }
+    }
+    
+    // Last resort: search all sessions for any complete project data
+    // This handles cases where projectId might have been lost but data exists
+    if (!project) {
+      const allSessions = await memory.getAllSessions()
+      for (const session of allSessions) {
+        if (session.state && session.state.projectName && session.state.category && session.state.goals && session.state.owner) {
+          // Only use if it looks like a complete project
+          const state = session.state
+          project = {
+            projectName: state.projectName,
+            category: state.category as any,
+            goals: state.goals as any,
+            owner: state.owner as any,
+            constraints: state.constraints,
+            timeline: state.timeline,
+            metadata: {
+              completedAt: new Date().toISOString(),
+              confidence: 0.7,
+            },
+          } as ProjectPayload
+          // Save with the requested projectId for future lookups
+          await memory.saveProject(projectId, project)
+          // Also update the session to link it properly
+          if (session.sessionId) {
+            await memory.saveSession(session.sessionId, { projectId, state: project })
+          }
+          break
         }
       }
     }
     
+    // If still not found, this is a legitimate 404 - project doesn't exist
+    // We'll let the route handler return proper 404 instead of throwing
     if (!project) {
-      throw new Error(`Project ${projectId} not found. Please provide project data in the request body: { "projectData": { "projectName": "...", "category": "...", "goals": [...], "owner": {...} } }`)
+      const error: any = new Error(`Project ${projectId} not found`)
+      error.statusCode = 404
+      error.code = 'PROJECT_NOT_FOUND'
+      throw error
     }
 
     // Fetch external data

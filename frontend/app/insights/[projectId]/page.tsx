@@ -4,7 +4,8 @@ import { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import { useParams, useRouter } from 'next/navigation'
 import { Sparkles, TrendingUp, AlertTriangle, CheckCircle2, Loader2, ArrowLeft, Zap } from 'lucide-react'
-import { apiClient, InsightReport } from '@/lib/api'
+import { apiClient } from '@/lib/api'
+import { InsightReport } from '@/lib/types'
 import toast from 'react-hot-toast'
 
 export default function InsightsPage() {
@@ -18,12 +19,26 @@ export default function InsightsPage() {
   const generateInsights = useCallback(async () => {
     try {
       setGenerating(true)
+      console.log('[InsightsPage] Generating insights for projectId:', projectId)
       const response = await apiClient.generateInsights(projectId)
+      console.log('[InsightsPage] Generate response:', JSON.stringify(response, null, 2))
       if (response.success) {
+        console.log('[InsightsPage] Insights data structure:', {
+          hasSuggestions: !!response.data.suggestions,
+          suggestionsLength: response.data.suggestions?.length,
+          hasRecommendations: !!response.data.recommendations,
+          hasRisks: !!response.data.risks,
+          hasActionPlan: !!response.data.actionPlan,
+          keys: Object.keys(response.data),
+        })
         setInsights(response.data)
         toast.success('Insights generated successfully!')
+      } else {
+        console.error('[InsightsPage] Generate failed:', response)
+        toast.error('Failed to generate insights')
       }
-    } catch {
+    } catch (error) {
+      console.error('[InsightsPage] Generate error:', error)
       toast.error('Failed to generate insights')
     } finally {
       setGenerating(false)
@@ -33,14 +48,26 @@ export default function InsightsPage() {
   const loadInsights = useCallback(async () => {
     try {
       setLoading(true)
+      console.log('[InsightsPage] Loading insights for projectId:', projectId)
       const response = await apiClient.getInsights(projectId)
+      console.log('[InsightsPage] Load response:', JSON.stringify(response, null, 2))
       if (response.success) {
+        console.log('[InsightsPage] Loaded insights data structure:', {
+          hasSuggestions: !!response.data.suggestions,
+          suggestionsLength: response.data.suggestions?.length,
+          hasRecommendations: !!response.data.recommendations,
+          hasRisks: !!response.data.risks,
+          hasActionPlan: !!response.data.actionPlan,
+          keys: Object.keys(response.data),
+        })
         setInsights(response.data)
       } else {
+        console.log('[InsightsPage] Insights not found, generating...')
         // Try to generate if not found
         await generateInsights()
       }
-    } catch {
+    } catch (error) {
+      console.error('[InsightsPage] Load error:', error)
       // Try to generate if not found
       await generateInsights()
     } finally {
@@ -88,6 +115,40 @@ export default function InsightsPage() {
             className="px-6 py-3 bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)] text-[var(--color-background)] font-display font-semibold rounded-lg disabled:opacity-50"
           >
             {generating ? 'Generating...' : 'Generate Insights'}
+          </motion.button>
+        </motion.div>
+      </div>
+    )
+  }
+
+  // Safety check: ensure insights has required structure
+  if (!insights.summary || !insights.suggestions) {
+    console.error('[InsightsPage] Invalid insights structure:', {
+      hasSummary: !!insights.summary,
+      hasSuggestions: !!insights.suggestions,
+      insightsKeys: Object.keys(insights),
+      fullInsights: JSON.stringify(insights, null, 2),
+    })
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="text-center max-w-md"
+        >
+          <AlertTriangle className="w-16 h-16 text-[var(--color-accent)] mx-auto mb-6" />
+          <h2 className="text-2xl font-display font-bold mb-4">Invalid Data Structure</h2>
+          <p className="text-[var(--color-muted-foreground)] mb-8">
+            The insights data structure is invalid. Please check the console for details.
+          </p>
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={generateInsights}
+            disabled={generating}
+            className="px-6 py-3 bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)] text-[var(--color-background)] font-display font-semibold rounded-lg disabled:opacity-50"
+          >
+            {generating ? 'Regenerating...' : 'Regenerate Insights'}
           </motion.button>
         </motion.div>
       </div>
@@ -154,54 +215,47 @@ export default function InsightsPage() {
           </div>
         </motion.div>
 
-        {/* Recommendations */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="mb-12"
-        >
-          <div className="flex items-center gap-3 mb-6">
-            <TrendingUp className="w-6 h-6 text-[var(--color-primary)]" />
-            <h2 className="text-3xl font-display font-bold">Recommendations</h2>
-          </div>
-          <div className="grid md:grid-cols-2 gap-6">
-            {insights.recommendations.map((rec, i) => (
-              <motion.div
-                key={rec.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 + i * 0.1 }}
-                className="p-6 bg-[var(--color-card)] border border-[var(--color-border)] rounded-xl hover:border-[var(--color-primary)]/50 transition-all"
-              >
-                <div className="flex items-start justify-between mb-3">
-                  <h3 className="font-display font-semibold text-lg">{rec.title}</h3>
-                  <span
-                    className={`px-2 py-1 text-xs rounded ${
-                      rec.category === 'quick-win'
-                        ? 'bg-[var(--color-primary)]/20 text-[var(--color-primary)]'
-                        : rec.category === 'strategic'
-                        ? 'bg-[var(--color-secondary)]/20 text-[var(--color-secondary)]'
-                        : 'bg-[var(--color-accent)]/20 text-[var(--color-accent)]'
-                    }`}
-                  >
-                    {rec.category}
-                  </span>
-                </div>
-                <p className="text-[var(--color-muted-foreground)] text-sm mb-4">{rec.description}</p>
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-[var(--color-muted-foreground)]">Priority: {rec.priority}</span>
-                  <span className="text-[var(--color-primary)]">
-                    {Math.round(rec.confidence * 100)}% confident
-                  </span>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        </motion.div>
+        {/* Suggestions */}
+        {insights.suggestions && insights.suggestions.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="mb-12"
+          >
+            <div className="flex items-center gap-3 mb-6">
+              <TrendingUp className="w-6 h-6 text-[var(--color-primary)]" />
+              <h2 className="text-3xl font-display font-bold">Suggestions</h2>
+            </div>
+            <div className="grid md:grid-cols-2 gap-6">
+              {insights.suggestions.map((suggestion, i) => (
+                <motion.div
+                  key={i}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3 + i * 0.1 }}
+                  className="p-6 bg-[var(--color-card)] border border-[var(--color-border)] rounded-xl hover:border-[var(--color-primary)]/50 transition-all"
+                >
+                  <div className="flex items-start justify-between mb-3">
+                    <h3 className="font-display font-semibold text-lg">Suggestion {i + 1}</h3>
+                    <span className="px-2 py-1 text-xs rounded bg-[var(--color-primary)]/20 text-[var(--color-primary)]">
+                      {suggestion.source}
+                    </span>
+                  </div>
+                  <p className="text-[var(--color-muted-foreground)] text-sm mb-4">{suggestion.suggestion}</p>
+                  <div className="mt-4 pt-4 border-t border-[var(--color-border)]">
+                    <p className="text-xs text-[var(--color-muted-foreground)]">
+                      <span className="font-medium">Reason:</span> {suggestion.reason}
+                    </p>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </motion.div>
+        )}
 
         {/* Risks */}
-        {insights.risks.length > 0 && (
+        {insights.risks && insights.risks.length > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -258,7 +312,7 @@ export default function InsightsPage() {
         )}
 
         {/* Action Plan */}
-        {insights.actionPlan.length > 0 && (
+        {insights.actionPlan && insights.actionPlan.length > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}

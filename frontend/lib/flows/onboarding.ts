@@ -40,7 +40,7 @@ export const onboardingFlow = {
     }
 
     // Save session state
-    memory.saveSession(sessionId, {
+    await memory.saveSession(sessionId, {
       state: collectionResult.data.state as Partial<ProjectPayload>,
     })
 
@@ -64,7 +64,7 @@ export const onboardingFlow = {
     project?: ProjectPayload
   }> {
     // Try to get session from memory, or use provided state
-    const session = memory.getSession(sessionId)
+    const session = await memory.getSession(sessionId)
     const stateToUse = currentState || session?.state
 
     if (!stateToUse) {
@@ -78,7 +78,7 @@ export const onboardingFlow = {
       }
 
       // Save the new state
-      memory.saveSession(sessionId, {
+      await memory.saveSession(sessionId, {
         state: collectionResult.data.state as Partial<ProjectPayload>,
       })
 
@@ -101,7 +101,7 @@ export const onboardingFlow = {
     }
 
     // Update session state
-    memory.saveSession(sessionId, {
+    await memory.saveSession(sessionId, {
       ...(session || {}),
       state: collectionResult.data.state as Partial<ProjectPayload>,
     })
@@ -142,8 +142,10 @@ export const onboardingFlow = {
           },
         }
 
-        memory.saveProject(projectId, finalProject)
-        memory.saveSession(sessionId, { projectId, state: finalProject })
+        // Save project first
+        await memory.saveProject(projectId, finalProject)
+        // Then save session with projectId link - this ensures we can find it later
+        await memory.saveSession(sessionId, { projectId, state: finalProject })
 
         return {
           isComplete: true,
